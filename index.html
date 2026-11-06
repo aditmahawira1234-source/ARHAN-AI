@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="bn">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101827">
+  <title>ARHAN-AI</title>
+  <style>
+    :root{font-family:system-ui,-apple-system,"Noto Sans Bengali",sans-serif;color:#eef2ff;background:#0b1220}
+    *{box-sizing:border-box} body{margin:0;min-height:100vh;background:radial-gradient(circle at top,#1b2b46,#0b1220 55%)}
+    .app{max-width:900px;margin:auto;padding:20px;display:flex;flex-direction:column;height:100dvh}
+    header{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0 18px}
+    h1{font-size:25px;margin:0}.sub{color:#a9b8d0;font-size:13px;margin-top:4px}
+    button{border:1px solid #40516e;background:#1a2940;color:#eef2ff;border-radius:10px;padding:10px 13px;cursor:pointer}
+    button:hover{background:#263a59}.chat{flex:1;overflow:auto;border:1px solid #293a55;background:#101a2b;border-radius:16px;padding:16px}
+    .msg{max-width:85%;padding:12px 14px;border-radius:14px;margin:10px 0;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.55}
+    .user{margin-left:auto;background:#254b78}.assistant{background:#1d2a3e;border:1px solid #30425d}
+    .who{font-size:11px;color:#a9b8d0;margin-bottom:4px}.composer{display:flex;gap:10px;padding-top:12px}
+    textarea{flex:1;resize:none;min-height:54px;max-height:150px;padding:13px;border-radius:12px;border:1px solid #40516e;background:#101a2b;color:white;font:inherit}
+    #send{min-width:78px;background:#2563a6;border-color:#367fc9}.status{font-size:12px;color:#a9b8d0;padding:8px 2px}
+    @media(max-width:600px){.app{padding:12px}.msg{max-width:94%}h1{font-size:21px}}
+  </style>
+</head>
+<body>
+<main class="app">
+  <header>
+    <div><h1>🤖 ARHAN-AI</h1><div class="sub">তোমার কথোপকথন সংরক্ষণ করে—যতক্ষণ ডেটা মুছে না ফেলো</div></div>
+    <button id="clear" title="চ্যাট মুছুন">চ্যাট মুছুন</button>
+  </header>
+  <section id="chat" class="chat" aria-live="polite"></section>
+  <div id="status" class="status">সংযোগ হচ্ছে…</div>
+  <form id="form" class="composer">
+    <textarea id="input" placeholder="এখানে লিখো… (Enter = পাঠাও, Shift+Enter = নতুন লাইন)" required></textarea>
+    <button id="send" type="submit">পাঠাও</button>
+  </form>
+</main>
+<script>
+const chat = document.querySelector('#chat'), input = document.querySelector('#input');
+const statusEl = document.querySelector('#status'), send = document.querySelector('#send');
+function addMessage(role, content) {
+  const item = document.createElement('article'); item.className = 'msg ' + role;
+  const who = document.createElement('div'); who.className = 'who';
+  who.textContent = role === 'user' ? 'তুমি' : 'ARHAN-AI';
+  const body = document.createElement('div'); body.textContent = content;
+  item.append(who, body); chat.append(item); chat.scrollTop = chat.scrollHeight;
+}
+async function loadHistory() {
+  try {
+    const r = await fetch('/api/history'); if (!r.ok) throw new Error();
+    const data = await r.json(); chat.replaceChildren();
+    if (!data.messages.length) addMessage('assistant','আসসালামু আলাইকুম! আমি ARHAN-AI। কীভাবে সাহায্য করতে পারি?');
+    data.messages.forEach(m => addMessage(m.role === 'user' ? 'user' : 'assistant', m.content));
+    statusEl.textContent = 'চ্যাট সার্ভারে সংরক্ষিত হচ্ছে।';
+  } catch { statusEl.textContent = 'সার্ভারের সঙ্গে সংযোগ হয়নি। সার্ভার চালু আছে কি না দেখো।'; }
+}
+document.querySelector('#form').addEventListener('submit', async e => {
+  e.preventDefault(); const message = input.value.trim(); if (!message) return;
+  addMessage('user', message); input.value = ''; send.disabled = true;
+  statusEl.textContent = 'ARHAN-AI উত্তর তৈরি করছে…';
+  try {
+    const r = await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message})});
+    const data = await r.json(); if (!r.ok) throw new Error(data.error || 'সমস্যা হয়েছে');
+    addMessage('assistant', data.reply); statusEl.textContent = 'চ্যাট সংরক্ষিত হয়েছে।';
+  } catch(err) { addMessage('assistant','দুঃখিত: ' + err.message); statusEl.textContent = 'অনুরোধ সম্পন্ন হয়নি।'; }
+  finally { send.disabled = false; input.focus(); }
+});
+input.addEventListener('keydown', e => { if(e.key==='Enter' && !e.shiftKey){e.preventDefault();document.querySelector('#form').requestSubmit();}});
+document.querySelector('#clear').addEventListener('click', async () => {
+  if (!confirm('সব সংরক্ষিত চ্যাট মুছে ফেলবে?')) return;
+  const r = await fetch('/api/history',{method:'DELETE'});
+  if(r.ok){chat.replaceChildren();addMessage('assistant','চ্যাট মুছে ফেলা হয়েছে। নতুন করে শুরু করি!');}
+});
+loadHistory();
+</script>
+</body>
+</html>

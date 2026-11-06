@@ -1,0 +1,16 @@
+{
+  "name": "arhan-ai",
+  "version": "2.0.0",
+  "private": true,
+  "description": "ARHAN-AI Bengali chat app with persistent conversation history",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7"
+  }
+}
